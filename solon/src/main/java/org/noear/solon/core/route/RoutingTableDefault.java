@@ -84,8 +84,46 @@ public class RoutingTableDefault<T> implements RoutingTable<T> {
     }
 
     private void doAdd(Routing<T> routing) {
-        int level = 0;
+        int precedence = precedenceOf(routing);
 
+        RankEntity<Routing<T>> entity = new RankEntity<>(routing, precedence, routing.index(), false);
+
+        if (precedence != 0 || routing.index() != 0) {
+            //有 * 号的 或有 index 的；排序下
+            table.addLast(entity);
+            Collections.sort(table);
+        } else {
+            //纯静态路径，且无自定义序位；直接排在最前
+            table.addFirst(entity);
+        }
+    }
+
+    /**
+     * 段规则等级（越小越精确）
+     */
+    private static final int SEGMENT_CONST = 0; //常量
+    private static final int SEGMENT_VAR = 1; //变量 {x}
+    private static final int SEGMENT_STAR = 2; //单段通配 *
+    private static final int SEGMENT_GLOBSTAR = 3; //跨段通配 **
+
+    /**
+     * 参与精确排序的段数（每段 2 bit，共 28 bit，不会溢出）
+     */
+    private static final int SEGMENT_LIMIT = 14;
+
+    /**
+     * 大层级占位（用于保证段位键不会越过层级）
+     */
+    private static final int LEVEL_UNIT = 1 << (2 * SEGMENT_LIMIT);
+
+    /**
+     * 计算排序键（越小越前）
+     * <p>
+     * 1. 大层级：静态 &gt; 变量 &gt; 单段通配 &gt; 跨段通配 &gt; 全匹配
+     * 2. 同层级：按路径段从左到右的规则等级比较（先出现的段更优先）
+     */
+    private static int precedenceOf(Routing<?> routing) {
+        int level = 0;
 
         if (routing.globstar() == 0) { // "/**"
             level = 4;
@@ -97,14 +135,37 @@ public class RoutingTableDefault<T> implements RoutingTable<T> {
             level = 1;
         }
 
-        RankEntity<Routing<T>> entity = new RankEntity<>(routing, level, routing.index(), false);
+        return level * LEVEL_UNIT + segmentKeyOf(routing.path());
+    }
 
-        if (level != 0 || routing.index() != 0) {
-            //有 * 号的 或有 index 的；排序下
-            table.addLast(entity);
-            Collections.sort(table);
+    /**
+     * 计算路径段排序键（从左到右逐段对比，越靠前的段越精确）
+     * <p>
+     * 超过 {@link #SEGMENT_LIMIT} 的深段不再参与对比（由注册顺序决定）
+     */
+    private static int segmentKeyOf(String path) {
+        String[] segments = path.split("/");
+
+        //首段是前导空串（必然为常量），不参与计算
+        int count = Math.min(segments.length - 1, SEGMENT_LIMIT);
+        int key = 0;
+
+        for (int i = 0; i < count; i++) {
+            key |= segmentRankOf(segments[i + 1]) << (2 * (SEGMENT_LIMIT - 1 - i));
+        }
+
+        return key;
+    }
+
+    private static int segmentRankOf(String segment) {
+        if (segment.contains("**")) {
+            return SEGMENT_GLOBSTAR;
+        } else if (segment.contains("*")) {
+            return SEGMENT_STAR;
+        } else if (segment.contains("{")) {
+            return SEGMENT_VAR;
         } else {
-            table.addFirst(entity);
+            return SEGMENT_CONST;
         }
     }
 

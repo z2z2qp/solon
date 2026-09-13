@@ -23,6 +23,10 @@
 * 添加 Plugin postStart 事件???
 * 调整 Plugin 统一交给 AppContext 管理（之前由 SolonApp 或 PluginPackage 管理）？？
 
+### 4.1.1
+
+* 优化 solon 路由表排序策略：同层级路由按路径段从左到右的精确度排序
+
 ### 4.1.0
 
 * 新增 solon-ai-router 插件
