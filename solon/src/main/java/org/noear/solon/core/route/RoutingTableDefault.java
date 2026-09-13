@@ -292,23 +292,6 @@ public class RoutingTableDefault<T> implements RoutingTable<T> {
         }
     }
 
-    /**
-     * 区配多个目标
-     *
-     * @param path   路径
-     * @param method 方法
-     * @return 一批区配的目标
-     */
-    @Override
-    public List<T> matchMore(String path, @Nullable String versionStr, MethodType method) {
-        Version version2 = versionOf(versionStr);
-
-        return table.stream()
-                .filter(l -> l.target.matches(method, path))
-                .map(l -> l.target.target(version2))
-                .collect(Collectors.toList());
-    }
-
     @Override
     public void clear() {
         table.clear();

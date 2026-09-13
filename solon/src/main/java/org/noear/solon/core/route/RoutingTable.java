@@ -108,17 +108,4 @@ public interface RoutingTable<T> {
      * @since 3.4
      */
     Result<T> matchOneAndStatus(String path, String version, MethodType method);
-
-
-    /**
-     * 区配多个目标
-     *
-     * @param path    路径
-     * @param version 版本号
-     * @param method  方法
-     * @return 一批区配的目标
-     * @since 2.5
-     * @since 3.4
-     */
-    List<T> matchMore(String path, String version, MethodType method);
 }
